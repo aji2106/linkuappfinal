@@ -1,0 +1,95 @@
+{% extends 'template.html' %}
+
+{% block title %}{{ poll.title }}{% endblock %}
+
+{% block content %}
+    <div class="card mt-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-11">
+                    <h1>{{ poll.title }}</h1>
+                    {% if mychoices %}
+                <div class="float-right " style="color: red;">
+                    <h2 class="font-weight-bold" > Your choices</h2>
+                    {% for choice in mychoices %}
+                    <h3 class="text-center font-weight-bold">{{ choice}}</h3>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                 </div>
+                {% if request.user == poll.creator or  user.is_superuser  %}
+                    <div class="col text-right">
+                        <a class="card-link" href="{% url 'poll_close' poll.pk %}">
+                            <button class="btn btn-danger">Close</button>
+                        </a>
+                        <a class="card-link" href="{% url 'poll_update' poll.pk %}">
+                             <button type="button" class="btn btn-secondary">Update</button>
+                        </a>
+                        <a class="card-link" href="{% url 'result_poll' poll.pk %}">
+                             <button type="button" class="btn btn-info">Actual Result</button>
+                        </a>
+                    </div>
+                    
+                {% endif %}
+            </div>
+
+
+        </div>
+    </div>
+    <div class="card mt-2">
+        <div class="card-body">
+            <h3>{{ poll.description }}</h3>
+        </div>
+    </div>
+    <div class="card mt-2 mb-4">
+        <div class="card-body">
+            <h2 style="margin-left: 20%; color: #111111;" class="font-weight-bold mb-4">Choices :</h2>
+            <div style="margin-left: 33.3%;margin-right: 33.3%;">
+                <form action="{% url 'poll_submit' %}" method="post">
+                    {% csrf_token %}
+                    <input hidden name="pk" value="{{ poll.pk }}">
+                    {% if not poll.multi_choices %}
+                        <div class="form-group text-center mt-1">
+                            {% for choice in poll.pollchoice_set.all %}
+                                <div class="form-check ml-3">
+                                    <label class="form-check-label "
+                                           style="font-size: 1.5rem;">
+                                            <input type="radio" value="{{ choice.pk }}" class="form-check-input"
+                                           name="choice" style="zoom: 1.5;margin-top: 8px;">
+                                            <div style='padding-left: 35px;' >{{ choice.content }}</div>
+                                           </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% elif poll.multi_choices %}
+                        <div class="form-group mt-3 ">
+                            {% for choice in poll.pollchoice_set.all %}
+                                <div class="form-check form-group text-center">
+                                    <label class="form-check-label ml-1 mt-1"
+                                           style="font-size: 1.5rem;">
+                                            <input type="checkbox" value="{{ choice.pk }}" class="form-check-input"
+                                           name="choices"
+                                           style="zoom: 1.5;margin-top: 8px;">
+                                            <div style='padding-left: 35px;' >{{ choice.content }}</div>
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if request.user.is_authenticated %}
+                    {% else %}
+                     <input type="text" class="form-control mt-5 text-center" name="email" placeholder="Enter Your Email">
+                     <div class="text-center"><span class="badge badge-info">Poll results will be sent to the above email !</span></div>
+                     {% endif %}
+                    {% if mychoices %}
+                    {% else %}
+                <button type="submit" class="btn btn-primary btn-lg text-center " style="margin-left: 40%;margin-top: 5%;">Submit
+                    </button>
+                    {% endif %}
+                </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

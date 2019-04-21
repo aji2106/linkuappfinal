@@ -1,0 +1,229 @@
+{% extends 'template.html' %}
+
+{% block content %}
+    {% load static %}
+    <script src="{% static 'js/moment.js' %}"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/tempusdominus-bootstrap-4/5.0.0-alpha14/js/tempusdominus-bootstrap-4.min.js">
+    </script>
+    <link href="{% static 'linkup/datepicker.min.css' %}" rel="stylesheet" type="text/css">
+    <script src="{% static 'linkup/datepicker.min.js' %}"></script>
+    <script src="{% static 'linkup/datepicker.en.js' %}"></script>
+    <script>
+    var datepicker;
+    var numberofdates = 0;
+    $(document).ready(function() {
+    var now = new Date();
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+    var options = {
+        language: 'en',
+        position: 'bottom left',
+    //     autoClose: true,
+        view: 'days',
+        minView: 'days',
+        timeFormat: 'h:ii',
+        dateFormat: 'dd/mm/yyyy',
+        minDate: now,
+        range: true,
+        toggleSelected: false,
+        timepicker: true,
+
+    };
+  
+  function xxx() {
+  
+        numberofdates++;
+            $("div#datetimepickers").append('<div class="row"><div class="col-md-8 col-sm-12"><div class="form-group"><input  id="ddd" autocomplete="off" placeholder="Start DateTime - End DateTime" name="ddd"  data-multiple-dates="2" data-multiple-dates-separator=" - " type="search" class="form-control dates-'+numberofdates+'"></div></div></div>');
+            $(".dates-"+numberofdates).datepicker(options);
+        }
+
+        function addNewLocation() {
+            $("div#location-choices").append('<div class="row"><div class="col-md-8 col-sm-12"><div class="form-group"><input name="location" type="search" class="form-control"></div></div></div>');
+        }
+
+        function addNewInvitedUser() {
+            $("div#invited-users").append('<div class="row"><div class="col-md-8 col-sm-12"><div class="form-group"><input name="invited" type="search" class="form-control"></div></div></div>');
+        }
+  
+
+        xxx();
+        $("button#add-new-datetime").click(function () {
+            xxx();
+        });
+
+        $("button#add-new-location").click(function () {
+            addNewLocation();
+        });
+
+        $("button#add-new-invited-user").click(function () {
+            addNewInvitedUser();
+        });
+     
+        $("select#privacy").change(function () {
+                    if (this.value === '0') {
+                        $("div#invite-user-block").show()
+                    } else {
+                        $("div#invite-user-block").hide()
+                    }
+                });
+});
+
+</script>
+
+    <div class="row justify-content-center">
+        <div class="col-8 col-md-8 col-sm-12">
+            <h1 class="text-center mt-5 mb-3">Create an Event</h1>
+            <form  method="post" class="mt-2">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="title">
+                        Title of your event
+                    </label>
+                    {% if title %}
+                    <input type="search" id="title" class="form-control" name="title" value={{title}}>
+                    {% else %}
+                    <input type="search" id="title" class="form-control" name="title">
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="description" >
+                        Describe Your Event
+                    </label>
+                    {% if description %}
+                    <textarea id="description" class="form-control"  name="description" >{{description}}</textarea>
+                    {% else %}
+                    <textarea id="description" class="form-control"  name="description" ></textarea>
+                    {% endif %}
+                </div>
+                <div class="row">
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label for="category">Category</label>
+                            <select class="form-control" id="category" name="category">
+                                {% for value, choice in event_category_choices %}
+                                    <option value="{{ value }}">{{ choice }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label for="importance">Importance</label>
+                            <select class="form-control" id="importance" name="importance">
+                                {% for value, choice in event_importance_choices %}
+                                    <option value="{{ value }}">{{ choice }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% if request.user.is_authenticated %}
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label for="privacy">Privacy</label>
+                            <select class="form-control" id="privacy" name="privacy">
+                                {% for value, choice in privacy_choices %}
+                                    <option value="{{ value }}">{{ choice }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+             <div class="card" style="border: none !important;">
+                    <div class="card-body">
+                        <div class="form-group" id="datetimepickers">
+                            <label>
+                                Datetime Choices:
+                            </label>
+                            
+                     {% if datetime %}
+                            {% for loc in datetime %}
+                            <div class="row">
+                                <div class="col-md-8 col-sm-12">
+                                    <div class="form-group">
+                                        <input  id="ddd" autocomplete="off" placeholder="Start DateTime - End DateTime" name="ddd"  data-multiple-dates="2" data-multiple-dates-separator=" - " type="search" class="form-control dates-1" value="{{loc}}">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            {% endif %}
+                        </div>
+                            
+                        <button class="btn btn-primary btn-sm mt-1" id="add-new-datetime" type="button">Add A Date
+                        </button>
+                    </div>
+            </div>
+            
+                <div class="card" style="border: none !important;">
+                    <div class="card-body">
+                        <div class="form-group" id="location-choices">
+                            <label>
+                                Location Choices:
+                            </label>
+                            {% if location %}
+                            {% for loc in location %}
+                            <div class="row">
+                                <div class="col-md-8 col-sm-12">
+                                    <div class="form-group">
+                                        <input name="location" type="search" class="form-control" value={{loc}}>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                              <div class="row">
+                                <div class="col-md-8 col-sm-12">
+                                    <div class="form-group">
+                                <input name="location" type="search" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <button class="btn btn-primary btn-sm mt-1" id="add-new-location" type="button">Add A Location
+                        </button>
+                    </div>
+                </div>
+                {% if request.user.is_authenticated %}
+                <div class="card" id="invite-user-block" style="border: none !important;">
+                    <div class="card-body">
+                        <div class="form-group" id="invited-users">
+                            <label>
+                                Invite Your Friends:
+                            </label>
+                            {% if invited_users %}
+                            {% for user in invited_users %}
+                            <div class="row">
+                                <div class="col-md-8 col-sm-12">
+                                    <div class="form-group">
+                                        <input name="invited" type="search" class="form-control" value={{user}}>
+                                    </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            {% else %}
+                            <div class="row">
+                                <div class="col-md-8 col-sm-12">
+                                    <div class="form-group">
+                                        <input name="invited" type="search" class="form-control">
+                                    </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button class="btn btn-primary btn-sm mt-1" id="add-new-invited-user" type="button">Add A User
+                        </button>
+                    </div>
+                </div>
+                                    {% endif %}
+
+                <div class="form-group mt-2">
+                    <button class="btn btn-lg btn-dark btn-block" type="submit">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+{% endblock %}

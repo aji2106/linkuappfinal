@@ -1,0 +1,177 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <title>{% block title %}Link Up{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'linkup/style.css' %}">
+    <link rel="shortcut icon" href="{% static 'logo.ico' %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap/bootstrap.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'fonts/fontawesome/css/all.min.css' %}">
+    <script src="{% static 'js/jquery-3.1.1.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap/bootstrap.min.js' %}"></script>
+    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.8.18/themes/base/jquery-ui.css" type="text/css" media="all"/>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js" type="text/javascript">
+</script> <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js" type="text/javascript"></script>
+
+    <script
+  src="https://code.jquery.com/jquery-3.3.1.js"
+  integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+  crossorigin="anonymous"></script>
+</head>
+<body>
+
+<header>
+<div class="navbar-wrapper">
+
+  <div class="container">
+    <a class="logo" href="{% url 'index' %}">Link Up</a>
+    <div class="menu-toggle"></div>
+    <nav id="nav">
+      <ul id="menu" class="navbar-collapse ">
+        <li><a href="{% url 'index' %}" class="btn">Home</a></li>
+        <li><a href="{% url 'poll_list' %}" class="btn">Poll</a></li>
+        <li><a href="{% url 'event_list' %}" class="btn">Event</a></li>
+            {% if request.user.is_authenticated %}
+         <div class="dropdown">
+        <li><a  onclick="myFunction()" class="btn dropbtn"> <i class="fas fa-user-circle">  </i>  {{ request.user.username }}</a></li>
+          <div id="myDropdown" class="dropdown-content">
+            <a href="{% url 'profile' %}"><i class="fas fa-user-cog"> </i> Profile </a>
+            <a href="{% url 'change_password' %}"><i class="fas fa-unlock-alt">    </i> Change Password</a>
+            <a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt">   </i> Logout</a>
+          </div>
+        </div>
+        {% else %}
+        <li><a href="{% url 'register' %}" class="btn"><i class="fas fa-user-plus"> </i> Register</a></li>
+        <li><a href="{% url 'login' %}" class="btn"><i class="fas fa-sign-in-alt"> </i> Login</a></li>
+      </ul>
+        {% endif %}
+    </nav>
+    <div class="clearfix"></div>
+  </div>
+
+</header>
+
+<script
+  src="https://code.jquery.com/jquery-3.3.1.js"
+  integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+  crossorigin="anonymous"></script>
+    </script>
+      <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+<script
+  src="https://code.jquery.com/jquery-3.3.1.js"
+  integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+  crossorigin="anonymous"></script>
+    <script type="text/javascript">
+      $(document).ready(function(){
+        $('.menu-toggle').click(function(){
+          $('.menu-toggle').toggleClass('active')
+          $('nav').toggleClass('active')
+        })
+      })
+
+      function myFunction() {
+  document.getElementById("myDropdown").classList.toggle("show");
+}
+
+// Close the dropdown menu if the user clicks outside of it
+window.onclick = function(event) {
+  if (!event.target.matches('.dropbtn')) {
+    var dropdowns = document.getElementsByClassName("dropdown-content");
+    var i;
+    for (i = 0; i < dropdowns.length; i++) {
+      var openDropdown = dropdowns[i];
+      if (openDropdown.classList.contains('show')) {
+        openDropdown.classList.remove('show');
+      }
+    }
+  }
+}
+
+    </script>
+
+<div class="container" style="min-height: 100vh;">
+    {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{message.tags}} mt-3">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+    {% block content %}
+    {% endblock %}
+</div>
+<footer class="footer  text-white">
+
+    <!-- Footer Links -->
+    <div class="container pt-5 pb-2">
+        <div class="row">
+            <div class="col-md-2 col-lg-2 col-xl-2 mx-auto">
+                <h4>Statistics</h4>
+                <table class="table">
+                    <tbody>
+                    <tr>
+                        <th scope="col">
+                            Polls created
+                        </th>
+                        <th scope="col">
+                            {{ polls_count }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th scope="col">
+                            Events created
+                        </th>
+                        <th scope="col">
+                            {{ events_count }}
+                        </th>
+                    </tr>
+                    <tr>
+                        <th scope="col">
+                            Active Users
+                        </th>
+                        <th scope="col">
+                            {{ users_count }}
+                        </th>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="col-md-3 col-lg-2 col-xl-2 mx-auto">
+                <h4>Useful links</h4>
+                <hr class="bg-white mb-2 mt-0 d-inline-block mx-auto w-25">
+                <p><a href="{% url 'index' %}" class="text-white">Home</a></p>
+                <p><a href="{% url 'about' %}" class="text-white">About Us</a></p>
+            </div>
+
+            <div class="col-md-4 col-lg-3 col-xl-3">
+                <h4>Contact</h4>
+                <hr class="bg-white mb-2 mt-0 d-inline-block mx-auto w-25">
+                <p><i class="fa fa-home mr-3"></i>LinkUp made in London</p>
+                <p><i class="fa fa-envelope mr-3"></i><a style="color:white; text-decoration:none"  href="mailto:hellolinkupteam@gmail.com?subject=Type subject here&body=Type message here , we anticipate to get back to you in 24 hours." >hellolinkupteam@gmail.com</a>
+</p>
+            </div>
+
+        </div>
+    </div>
+    <!-- Footer Links-->
+
+    <hr class="bg-white mx-4 mt-2 mb-1">
+
+    <!-- Copyright-->
+    <div class="container-fluid">
+        <p class="text-center m-0 py-1">
+            © 2019 Copyright <a href="" class="text-white">LinkUp</a>
+        </p>
+    </div>
+    <!-- Copyright -->
+
+</footer>
+
+
+</body>
+</html>

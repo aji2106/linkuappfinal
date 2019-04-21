@@ -1,0 +1,75 @@
+{% extends "template.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    {% if data|length == 0 %}
+        <h1 class="text-center mt-5">No Events</h1>
+
+        <a href="{% url 'event_new' %}" class="mt-5">
+            <h2 class="text-center">Create An Event ?</h2>
+        </a>
+
+    {% elif data|length > 0 %}
+        <div class="row mt-4">
+            <div class="col">
+                <div class="alert alert-info">
+                    <a href="{% url 'event_new' %}" style="color: gray;">
+                        <h2 class="text-center">Create An Event</h2>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="list-group mt-2">
+            {% for event in data %}
+            {% if request.user in event.invited_users.all or event.privacy == 1  or request.user == event.creator  %}
+                <a href="{% url 'event_detail' event.pk %}"
+                   class="list-group-item list-group-item-action flex-column align-items-start"
+                   style="background: azure">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ event.title }}</h5>
+                        <small>Created at: {{ event.created_at }}</small>
+                       
+                    </div>
+                    <p class="mb-1">
+                        {{ event.description|truncatechars:50 }}
+                    </p>
+                    {% if event.creator.username %}
+                    <small>Created by: {{ event.creator.username }}</small>
+                    {%else%}
+                    <small>Created by: An Anonymos</small>
+                    {%endif%}
+                    <br>
+                    {% if event.privacy == 0 %}
+                    <small>Privacy: Private</small>
+                    {%else%}
+                    <small>Privacy: Public</small>
+                    {%endif%}
+
+                </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div class="row mt-5 mb-5">
+            <div class="offset-5">
+                <div class="pagination float-sm-right">
+                    <span class="step-links">
+        {% if data.has_previous %}
+            <a href="?page=1">&laquo; first</a>
+            <a href="?page={{ data.previous_page_number }}">previous</a>
+        {% endif %}
+
+                        <span class="current">
+            Page {{ data.number }} of {{ data.paginator.num_pages }}.
+        </span>
+
+                        {% if data.has_next %}
+                            <a href="?page={{ data.next_page_number }}">next</a>
+                            <a href="?page={{ data.paginator.num_pages }}">last &raquo;</a>
+                        {% endif %}
+    </span>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

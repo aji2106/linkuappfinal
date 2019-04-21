@@ -1,0 +1,10 @@
+{% if users.count > 0 %}
+<ul class="list-group">
+
+{% for user in users %}
+
+<li><h6>{{user.username}}</li>
+{% endfor %}
+{%else%}
+<a>Nothing</a>
+{% endif %}

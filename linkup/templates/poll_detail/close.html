@@ -1,0 +1,77 @@
+{% extends 'template.html' %}
+
+{% block title %}{{ poll.title }}{% endblock %}
+
+{% block content %}
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h1>{{ poll.title }}</h1>
+        </div>
+    </div>
+    <div class="card mt-2">
+        <div class="card-body">
+            <h4>{{ poll.description }}</h4>
+        </div>
+    </div>
+    <div class="mt-4">
+        <table class="table table-hover">
+            <thead class="thead-dark">
+            <tr>
+                <th scope="col">
+                    Choice Content
+                </th>
+                {% if request.user == poll.creator or user.is_superuser %}
+                <th scope="col">
+                    Users
+                </th>
+                {%else%}
+                <th scope="col">
+                </th>
+                {%endif%}
+                 <th scope="col">
+                    Count
+                </th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for choice in choices %}
+               {% if choice.count == best_option %}
+                <tr class="bg-success text-white">
+                      <th scope="row">{{ choice.option }}</th>
+                    <th scope="row">
+                    {% if request.user == poll.creator or  user.is_superuser %}
+                    {% for usr in choice.users %}
+                        
+                        <div class=" d-none d-md-block mt-1"><img src="https://img.icons8.com/metro/26/000000/guest-male.png"> {{ usr }}</div>
+
+                    {% endfor %}
+                    </th>
+                    {%endif%}
+                    <th scope="row">{{ choice.count }}</th>
+
+                </tr>
+            {% else %}
+            <tr>        
+                    <th scope="row">{{ choice.option }}</th>
+                    <th scope="row">
+                    {% if request.user == poll.creator or  user.is_superuser %}
+                    {% for usr in choice.users %}
+                        
+                        <div class=" d-none d-md-block mt-1"><img src="https://img.icons8.com/metro/26/000000/guest-male.png"> {{ usr }}</div>
+
+                    {% endfor %}
+                    </th>
+                    {%endif%}
+                    <th scope="row">{{ choice.count }}</th>
+
+                </tr>
+                {% endif %}
+            {% endfor %}
+                
+
+                </tr>
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

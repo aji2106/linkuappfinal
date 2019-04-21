@@ -1,0 +1,77 @@
+{% extends 'template.html' %}
+
+{% block title %}{{ event.title }}{% endblock %}
+
+{% block content %}
+    {% if date and location %}
+
+    <div class="card mt-5">
+        <div class="card-body">
+
+                
+            <h1>{{ event.title }}</h1>
+                        <div class="col-12 text-right">
+                        <a class="card-link" href="{% url 'event_detail' event.pk %}">
+                            <button class="btn btn-light">Return to the event</button>
+                        </a>
+                        </div>
+                
+        </div>
+    </div>
+    <div class="card mt-2">
+        <div class="card-body">
+            <p>{{ event.description }}</p>
+        </div>
+    </div>
+    <div class="mt-3">
+    <h2 class="font-weight-bold mb-4 text-center">Datetime Choices</h2>
+    <table class="table table-hover">
+    <thead class="thead-dark">
+            <tr>
+                <th scope="col" class="text-center">
+                    Choice Content
+                </th>
+ 
+            </tr>
+            </thead>
+            <tbody>
+             
+                <tr>
+                    <th scope="row" class="text-center"> {{ date }}</th>
+                
+                </tr>
+            </tbody>
+    </table>
+    </div>
+    <div class="mt-5">
+    <h2 class="font-weight-bold mb-4 text-center">Location Choices </h2>
+    <table class="table table-hover">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col" class="text-center">
+                    Choice Content
+                </th>
+    
+            </tr>
+            </thead>
+            <tbody>
+             
+                <tr>
+                    <th scope="row" class="text-center"> {{ location }}</th>
+                </tr>
+            </tbody>
+    </table>
+    </div>
+    </thead>
+</table>
+</div>
+{% else %}
+<div class="alert alert-danger mt-3" role="alert">
+ Sorry, something went wrong :/ 
+</div>
+{% endif %}
+
+
+    
+    
+{% endblock %}

@@ -1,0 +1,170 @@
+{% extends 'template.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="row mt-4 mb-4">
+        <div class="col-4">
+            <div class="card">
+                <div class="card-header font-weight-bold text-center bg-secondary text-white">
+                    <span>My Profile</span>
+                </div>
+                <div class="card-body font-weight-bold">
+                    <img class="img-thumbnail mx-auto d-block mb-3" src="{{ request.user.profile.image.url }}">
+                    <span>Username: <span class="text-info">{{ request.user.username }}</span></span><br>
+                    {% if request.user.email %}
+                     <span>E-mail: <span class="text-info">{{ request.user.email }}</span></span>
+                    {% else %}
+                    {% endif %}
+                    <br>
+                    <br>
+                    <a href="{%  url 'update' %}">Edit profile</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-8">
+             <div class="card mb-2">
+                <div class="card-header   bg-info text-white font-weight-bold">
+                    <span>Invitation for Event:</span>
+                    <span style="float: right;">
+                        <a class="text-white" href="{% url 'more' 'events_invitation' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for event in events_invitation %}
+                        {% if event.creator != request.user %}
+                            <div class="list-group-item">
+                                <a href="{%  url 'event_detail' event.pk %}">{{ event.title }}</a>
+                            </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card ">
+                <div class="card-header   bg-info text-white font-weight-bold">
+                    <span>Open Events :</span>
+                    <span style="float: right;">
+                        <a class="text-white" href="{% url 'more' 'scheduling_events' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for event in scheduling_event %}
+                            <div class="list-group-item">
+                                <a href="{%  url 'event_detail' event.pk %}">{{ event.title }}</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-2">
+                <div class="card-header font-weight-bold bg-info text-white">
+                    <span>Events you created : </span>
+                    <span style="float: right;">
+                        <a class="text-white" href="{% url 'more' 'created_events' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for event in events_created %}
+                            <div class="list-group-item">
+                                <a href="{%  url 'event_detail' event.pk %}">{{ event.title }}</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-2">
+                <div class="card-header font-weight-bold bg-info text-white">
+                    <span>Past Closed Events :</span>
+                    <span style="float: right;">
+                        <a class="text-white" href="{% url 'more' 'scheduled_events' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for event in scheduled_event %}
+                            <div class="list-group-item">
+                                <a href="{%  url 'event_detail' event.pk %}">{{ event.title }}</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+             <div class="card mt-2">
+                <div class="card-header font-weight-bold bg-info text-white">
+                    <span>Invitation for Poll: </span>
+                    <span style="float: right;">
+                        <a class="text-white" href="{% url 'more' 'poll_invitation' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for poll in poll_invitation %}
+                            {% if poll.creator != request.user %}
+                            <div class="list-group-item">
+                                <a href="{% url 'poll_detail' poll.pk %}">{{ poll.title }}</a>
+                            </div>
+                             {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-2">
+                <div class="card-header font-weight-bold bg-info text-white">
+                    <span>Open Polls: </span>
+                    <span style="float: right;">
+                        <a class="text-white" href="{% url 'more' 'opened_polls' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for poll in opened_polls %}
+                            <div class="list-group-item">
+                                <a href="{% url 'poll_detail' poll.pk %}">{{ poll.title }}</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-2">
+                <div class="card-header font-weight-bold bg-info text-white">
+                    <span>Polls you created :</span>
+                    <span style="float: right;">
+                        <a class="text-white" href="{% url 'more' 'polls_created' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for poll in polls_created %}
+                            <div class="list-group-item">
+                                <a href="{% url 'poll_detail' poll.pk %}">{{ poll.title }}</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-2">
+                <div class="card-header font-weight-bold bg-info text-white">
+                    <span>Past Closed Polls :</span>
+                    <span style="float: right;">
+                        <a class="text-white " href="{% url 'more' 'close_polls' %}">More</a>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for poll in close_polls %}
+                            <div class="list-group-item">
+                                <a href="{% url 'poll_detail' poll.pk %}">{{ poll.title }}</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+{% endblock %}

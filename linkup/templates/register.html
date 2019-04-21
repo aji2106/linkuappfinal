@@ -1,0 +1,35 @@
+{% extends 'template.html' %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+
+    <form class="mt-4" action="{% url 'register' %}" method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="username">Username :</label>
+            <input type="text" class="form-control" id="username" aria-describedby="username"
+                placeholder="Enter username" name="username">
+        </div>
+        <div class="form-group">
+            <label for="email">Email address :</label>
+            <input type="email" class="form-control" id="email" aria-describedby="email"
+                   placeholder="Enter email" name="email">
+            <small id="emailHelp" class="form-text text-muted">We'll never share your email with anyone else.</small>
+        </div>
+        <div class="form-group">
+            <label for="exampleInputPassword1">Password :</label>
+            <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password" name="password">
+        </div>
+        
+        
+           <script src='https://www.google.com/recaptcha/api.js'></script>
+    <div class="g-recaptcha mb-3" data-sitekey="6Lcve5gUAAAAALPsgkETlu1BtRNhYYSDpWN3OIFE"></div>
+        
+        
+        
+        
+        <button type="submit" class="btn btn-primary">Register</button>
+    </form>
+
+{% endblock %}

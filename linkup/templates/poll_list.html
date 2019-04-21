@@ -1,0 +1,92 @@
+{% extends 'template.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+    {% if data|length == 0 %}
+            <h1 class="text-center mt-5">No Polls</h1>
+
+        <a href="{% url 'poll_new' %}" class="mt-5">
+            <h2 class="text-center">Create A Poll ?</h2>
+        </a>
+        {% if user.is_authenticated %}
+        {% with url_name=request.resolver_match.url_name %}
+        {% if url_name == 'poll_list_private' %}
+       <h6 class="mt-3 mb-3"> Click  <span><a href="{% url 'poll_list' %}">here</a> </span> if you want to see the all polls  </h6>
+       {% endif %}
+       {% endwith %}
+       {% endif %}
+    {% elif data|length > 0 %}
+        <div class="row mt-4">
+            <div class="col">
+                <div class="alert alert-info">
+                    <a href="{% url 'poll_new' %}" style="color: gray;">
+                        <h2 class="text-center">Create A Poll</h2>
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+        <form action="" method="post" class="mt-2">
+        {% if user.is_authenticated %}
+        {% with url_name=request.resolver_match.url_name %}
+        {% if url_name == 'poll_list' %}
+        <h6 class="mt-3 mb-3"> Click  <span><a href="{% url 'poll_list_private' %}">here</a> </span> if you want to see the private polls only </h6>
+       {% else %}
+       <h6 class="mt-3 mb-3"> Click  <span><a href="{% url 'poll_list' %}">here</a> </span> if you want to see the all polls  </h4>
+       {% endif %}
+       {% endwith %}
+       {% endif %}
+        <div class="list-group mt-2">
+            {% for poll in data %}
+            {% if request.user in poll.invited_users.all or poll.privacy == 1 or request.user == poll.creator %}
+
+                <a href="{% url 'poll_detail' poll.pk %}"
+                   class="list-group-item list-group-item-action flex-column align-items-start" style="background: azure">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ poll.title }}</h5>
+                        <small>Created at : {{ poll.created_at }}</small>
+                    </div>
+                    <p class="mb-1">
+                        {{ poll.description|truncatechars:50 }}
+                    </p>
+                    {% if poll.creator.username%}
+                    <small>Created by: {{ poll.creator.username }}</small>
+                    {%else%}
+                    <small>Created by: An Anonymos</small>
+                     {%endif%}
+                    <br>
+                     {% if poll.privacy == 0 %}
+                    <small>Privacy: Private</small>
+                    {%else%}
+                    <small>Privacy: Public</small>
+                    {%endif%}
+                </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <div class="row mt-2">
+            <div class="offset-5 ">
+                <div class="pagination float-sm-right">
+            <span class="step-links">
+            {% if data.has_previous %}
+                <a href="?page=1">&laquo; first</a>
+                <a href="?page={{ data.previous_page_number }}">previous</a>
+            {% endif %}
+                <span class="current">
+                    Page {{ data.number }} of {{ data.paginator.num_pages }}.
+                </span>
+                {% if data.has_next %}
+                    <a href="?page={{ data.next_page_number }}">next</a>
+                    <a href="?page={{ data.paginator.num_pages }}">last &raquo;</a>
+                {% endif %}
+            </span>
+        </div>
+            </div>
+        </div>
+
+    {% endif %}
+
+
+{% endblock %}

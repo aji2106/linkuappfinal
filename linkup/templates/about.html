@@ -1,0 +1,42 @@
+{% extends "template.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% load staticfiles%}
+{% block content %}
+<br>
+<div class="container">
+   <div class="row">
+      <div class="col">
+         <h2>About</h2>
+         <p>LinkUp is a free new software alternative to the Doodle website.</p>
+         <p>LinkUp solves the inflexible solutions found in Doodle, wth an improved algorithmic solution (combining intuitive design and functionality) that focuses on enhancing efficiency, productivity, wellbeing and reducing cognitive load</p>
+         <h2>App Walkthrough</h2>
+         <p> Add later...below video is a placeholder   </p>
+        <!--    <iframe width="550" height="400" src="https://www.youtube-nocookie.com/embed/Aw0jwoP5P7Q" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>-->
+         <h2>Market Research Results</h2>
+         <p>Results available <a href="http://bit.ly/SurveyResultsFlexibleDoodle" target="_blank">HERE</a>.
+         <p>
+          <!--  <img class="img-fluid" src ="{% static 'img/Results.png'%}"> -->
+      </div>
+      <div class="col">
+         <h2>Contribution & Release information</h2>
+         <br>
+         <h3><span class="badge badge-success">Beta V1</span></h3>
+         <br>
+         <h3> Want to contribute ? </h3>
+         <p>There are multiple ideas for new features to further improve LinkUp, which can be explored in further iterations of the project.</p>
+         <p>If you would like to contribute, you can create issues and / or Pull requests at
+            <a href="">GitHub LinkUp repo</a>.
+         </p>
+         <!--<h2>Thanks</h2>
+            We want to thank all who have contributed to this project.
+              <p>Main authors:</p>
+              <ul>
+                  <li>Nils Rokita</li>
+                  <li>Mareike Schmidt</li>
+              </ul>
+              <p>We would like to thank the students of the Department of Informatics from the University of Hamburg for their testing
+                  of BitPoll</p> -->
+      </div>
+   </div>
+</div>
+{% endblock %}

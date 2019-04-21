@@ -1,0 +1,100 @@
+{% extends 'template.html' %}
+
+{% block title %}{{ event.title }}{% endblock %}
+
+{% block content %}
+
+<div class="card mt-5 mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-10">
+                    <h1>{{ event.title }}</h1>
+            </div>
+                {% if request.user == event.creator or  user.is_superuser  %}
+                    <div style="margin-left:55%;">
+                        <a class="card-link" href="{% url 'event_close' event.pk %}">
+                            <button class="btn btn-danger">Close</button>
+                        </a>
+                        <a class="card-link" href="{% url 'event_update' event.pk %}">
+                             <button type="button" class="btn btn-secondary">Update</button>
+                        </a>
+                        <a class="card-link" href="{% url 'result' event.pk %}">
+                             <button type="button" class="btn btn-info">Actual Result</button>
+                        </a>
+
+                {% endif %}
+                    {% if btn == 1 %}
+                        <a class="card-link mt-2" href="{% url 'event_join' event.pk %}">
+                        <button class="btn btn-primary">My choices</button>
+                        </a>
+                    {% endif %}
+                
+        </div>
+    </div>
+</div>
+<div class="card mt-2">
+        <div class="card-body">
+            <h4>{{ event.description }}</p>
+        </div>
+</div>
+<form action="{% url 'event_submit' %}" method="post">
+    {% csrf_token %}
+    <div class="card mt-2 mb-4">
+        <div class="card-body">
+            <h2 class="mb-4 p-3 mb-2 bg-light text-dark">Datetime Choices :</h2>
+            <div style="margin-left: 33.3%;margin-right: 33.3%;">
+                 <input hidden name="pk" value="{{ event.pk }}">
+                    {% for choice in options %}
+                    {% if choice.content == '' %}
+                    {% else%}
+                    <div class="form-group">
+                        <div class="form-check">
+                                    <label class="form-check-label ml-1"
+                                           style="font-size: 1.5rem;">
+                                           <input type="radio" value="{{ choice.pk }}" class="form-check-input"
+                                           name="choice" style="zoom: 1.3;margin-top: 10px;">
+                                            <div style='white-space: nowrap;' class="ml-2">{{ choice.content }}
+                                            {% if choice.period != '' %}
+                                            <span style="color: red; margin-left: 1%;"> ({{ choice.period }})</span> </div>
+                                             {% else %}
+                                            <span style="color: red; margin-left: 7%;"> {{ choice.period }}</span> </div>
+                                            {% endif %}
+
+                                            
+                                    </label>
+                        </div>
+                    </div>
+                     {% endif %}
+                    {% endfor %}
+            </div>
+        </div>
+        <div class="card-body">
+            <h2 class="mb-4 p-3 mb-2 bg-light text-dark">Location Choices :</h2>
+                    <div style="margin-left: 33.3%;margin-right: 33.3%;">
+                     {% for choice2 in event.location_choices.all %}
+                            <div class="form-check">  
+                                <label class="form-check-label ml-1"
+                                       style="font-size: 1.5rem;">
+                                       <input type="radio" value="{{ choice2.pk }}" class="form-check-input"
+                                       name="choice2" style="zoom: 1.3;margin-top: 2%;">
+                                        <div style='padding-left: 35px;' >{{ choice2.content }}</div>
+                                </label>
+
+                            </div>
+                         {% endfor %}
+                    </div>
+        </div>
+                        {% if btn == 1 %}
+                        {% else %}
+                            <button type="submit" class="btn btn-primary btn-lg center-block" style="margin: 5% 44% 5%;">Submit</button>
+
+                        {% endif %}
+
+                        </div>
+                
+                        </div>
+
+                </form>
+
+
+    {% endblock %}
