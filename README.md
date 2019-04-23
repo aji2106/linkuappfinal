@@ -21,20 +21,6 @@ Notes: localhost version please use SQLite, it may need configuration of API key
 # Release Information
 24.04.19: Public Release: First stable release, group feature and calendar intergration has been missed out of stable release due to time constraints. 
 
-## Tech
-
-LinkUp uses a number of open source projects to work properly:
-
-* [AngularJS] - HTML enhanced for web apps!
-* [Ace Editor] - awesome web-based text editor
-* [markdown-it] - Markdown parser done right. Fast and easy to extend.
-* [Bootstrap] - great UI boilerplate for modern web apps
-* [node.js] - evented I/O for the backend
-* [Express] - fast node.js network app framework [@tjholowaychuk]
-* [Gulp] - the streaming build system
-* [Breakdance](http://breakdance.io) - HTML to Markdown converter
-* [jQuery] - duh
-
 ## Functional Requirements Implementation Overview
 Primary Functional Requirments
 
@@ -55,5 +41,5 @@ Primary Functional Requirments
 |13|Feature (Event Scheduling) |Initiator based on results can choose the final option based on computations and notify participants.. | Yes | 
 
 
-
+For further info please refer to about page.
 
