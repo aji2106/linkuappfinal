@@ -21,18 +21,18 @@ Notes: localhost version please use SQLite, it may need configuration of API key
 # Release Information
 24.04.19: Public Release: First stable release, group feature and calendar intergration has been missed out of stable release due to time constraints. 
 
-## Functional Requirements Implementation Overview
-Primary Functional Requirments
+## Functional  Requirements Implementation Overview
+#### Primary Functional Requirments
 
 | No |Function | Requirment Description | Implemented (Yes/No) ?  |
 | :------------ |:----:| -:|-----:|
 |1| Authentication|All Users can register, login, reset their password and log out of web application. |Yes |
 |2| Authentication|Database stores individual entries of username, password, name and email. | Yes |
 |3|Authentication |Sign up page implements Captcha to verify human sign up and prevent bots. | Yes | 
-|4|Authentication (Cookies) |Upon signup users’ input is valid to ensure valid and accurate accounts are created. | Yes | 
-|5|Feature (Dashboard) |The system tracks cookies and sessions to ensure the right users have access the right page. Example: right event/poll page. | Yes | 
-|6|Feature (Dashboard) |Sign up page implements Captcha to verify human sign up and prevent bots. | Yes | 
-|7|Feature (Event Scheduling) |Sign up page implements Captcha to verify human sign up and prevent bots. | Yes | 
+|4|Authentication|Upon signup users’ input is valid to ensure valid and accurate accounts are created. | Yes | 
+|5|Authentication(Cookies) |The system tracks cookies and sessions to ensure the right users have access the right page. Example: right event/poll page. | Yes | 
+|6|Feature (Dashboard) |Registered Users can log in into their specific profile dashboard to view open events, events they initiated, closed events and vice versa for polls (secondary). | Yes | 
+|7|Feature (Dashboard) |A registered user can import their calendar (E.G Google Calendar) to display their DateTime availability. After importing calendar, the user can then share and show their calendar schedule on their profile enabling potential participants the benefit of booking events quickly and with accuracy. | No | 
 |8|Feature (Event Scheduling) |The system uses an algorithm to automatically determine and display the best optimal option for event initiator based on options (DateTime & Locations). | Yes | 
 |9|Feature (Event Scheduling) |All Users can create public events specifying the title, description, category event fits, importance, DateTime choices and location choices. | Yes | 
 |10|Feature (Event Scheduling) |Registered users can create private events as well as invite event participants/ friends through username. | Yes | 
@@ -40,6 +40,11 @@ Primary Functional Requirments
 |12|Feature (Event Scheduling) |Event Participants join an event either through an available link or invited through their username. | Yes | 
 |13|Feature (Event Scheduling) |Initiator based on results can choose the final option based on computations and notify participants.. | Yes | 
 
+### Secondary Functional Requirments
 
-For further info please refer to about page.
-
+| No        | Function           | Requirment Description  |  Implemented (Yes/No) ?   |
+| ------------- |:-------------:| -----:| -----:|
+| 1     | Feature (Poll) | LinkUp will extend capabilities offering users simple and effective polling solution allowing users to create, update, close and view public and private polls. | Yes |
+| 2      | Feature(Dashboard)|   Registered users will be able to customise their profile in various actions such as uploading a profile image to be easily recognisable to make it more personable as well as having the ability to group users/contacts into groups improving the overall process of multiple user interaction. | Yes |
+| 3 | Feature(Event Scheduling & Polls)|   With the implementation of an email delivery service such as SendGrid, Users can receive email updates on either event or polls.   | Yes |
+| 4 | Feature(Event Scheduling)|  Event participants can mark themselves unavailable for events. If the unavailable option selected is greater than proposed options set by the initiator, then event participants have further capabilities to suggest new options for event organiser/initiator to consider. | No |
