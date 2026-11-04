@@ -12,9 +12,9 @@
             </div>
                 {% if request.user == event.creator or  user.is_superuser  %}
                     <div style="margin-left:55%;">
-                        <a class="card-link" href="{% url 'event_close' event.pk %}">
+                        <form class="card-link" method="post" action="{% url 'event_close' event.pk %}">{% csrf_token %}
                             <button class="btn btn-danger">Close</button>
-                        </a>
+                        </form>
                         <a class="card-link" href="{% url 'event_update' event.pk %}">
                              <button type="button" class="btn btn-secondary">Update</button>
                         </a>

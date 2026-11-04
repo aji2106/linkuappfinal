@@ -23,8 +23,7 @@
         </div>
         
         
-           <script src='https://www.google.com/recaptcha/api.js'></script>
-    <div class="g-recaptcha mb-3" data-sitekey="6Lcve5gUAAAAALPsgkETlu1BtRNhYYSDpWN3OIFE"></div>
+           {% if recaptcha_enabled %}<script src="https://www.google.com/recaptcha/api.js" async defer></script><div class="g-recaptcha mb-3" data-sitekey="{{ recaptcha_site_key }}"></div>{% endif %}
         
         
         

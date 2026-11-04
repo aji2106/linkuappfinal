@@ -1,12 +1,20 @@
-from django.contrib.auth import logout, authenticate, login
+from django.contrib.auth import logout, authenticate, login, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import redirect, get_object_or_404, render
 from django.template import loader
 from django.contrib import messages
 from django.conf import settings
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.validators import validate_email
+from django.db import transaction
+from django.db.models import Q
+from django.views.decorators.http import require_POST, require_http_methods
+import requests as req
+from .forms import RegistrationForm
 import collections
 from django.core.mail import send_mail
 from django.template import loader
@@ -14,7 +22,6 @@ import json
 from datetime import datetime
 from .forms import  UserUpdateForm as userupdateform
 from .forms import  ProfileUpdateForm as profile_update_form
-import urllib
 from linkup.constants import PrivacyChoices, StateChoices
 from linkup.models import (
     Event,
@@ -32,6 +39,33 @@ from .constants import (
     event_importance_choices,
     privacy_choices,
 )
+def _integer_pk(value):
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise Http404
+    if number < 1:
+        raise Http404
+    return number
+
+def _can_access(request, item):
+    user = request.user
+    return item.privacy == PrivacyChoices.PUBLIC or (
+        user.is_authenticated and (
+            user.is_superuser or item.creator_id == user.pk
+            or item.invited_users.filter(pk=user.pk).exists()
+        )
+    )
+
+def _visible_to(queryset, user):
+    if user.is_authenticated:
+        if user.is_superuser:
+            return queryset
+        return queryset.filter(
+            Q(privacy=PrivacyChoices.PUBLIC) | Q(creator=user) | Q(invited_users=user)
+        ).distinct()
+    return queryset.filter(privacy=PrivacyChoices.PUBLIC)
+
 def return_statistics():
     polls_count = Poll.objects.count()
     events_count = Event.objects.count()
@@ -65,52 +99,22 @@ def about(request):
 # Datetime duration Function
 # It takes two arguments and return a string
 def period(d1, d2):
-        s1 = d1[:10]
-        s2 = d2[:10]
-        start= d1[11:]
-        end= d2[11:]
-
-        d1 = datetime.strptime(s1, "%d/%m/%Y")
-        d2 = datetime.strptime(s2, "%d/%m/%Y")
-        d = abs((d2 - d1).days)
-        start_dt = datetime.strptime(start, '%H:%M')
-        end_dt = datetime.strptime(end, '%H:%M')
-        diff = (end_dt - start_dt)
-        diff = str(diff)
-        if diff[0] == '-':
-            if diff[12].isdigit():
-                diff = diff[8:13]
-            else:
-                diff = diff[8:12]
-        else:
-            if start[0:2] =='00':
-                if diff[1].isdigit():
-                    diff = diff[:5]
-                else:
-                    diff = diff[:4]
-            else:
-                diff = diff[:5]
-        if diff[0:2].isdigit():
-            diff = f'{diff[0:2]}h {diff[3:]}m'
-        else:
-            diff = f'{diff[0:1]}h {diff[2:4]}m'
-
-        if diff.find('00m') != -1:
-            diff = diff[:diff.find('00')]
-        if diff.find('0h') != -1:
-            diff = diff[diff.find('0h')+2:]
-        if d !=0:
-            if diff.isspace() :
-                return (f'{d} days')
-            else:
-                return (f'{d} days,{diff}')
-        else:
-            return (f'{diff}')
+    delta = abs(datetime.strptime(d2.strip(), "%d/%m/%Y %H:%M") - datetime.strptime(d1.strip(), "%d/%m/%Y %H:%M"))
+    hours, remainder = divmod(delta.seconds, 3600)
+    minutes = remainder // 60
+    parts = []
+    if delta.days:
+        parts.append(f"{delta.days} day{'s' if delta.days != 1 else ''}")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes or not parts:
+        parts.append(f"{minutes}m")
+    return " ".join(parts)
 
 # Event List Function
 # Return Event list page with paginator to 10 per page
 def event_list(request):
-    events = Event.objects.all()
+    events = _visible_to(Event.objects.all(), request.user)
     template = loader.get_template('event_list.html')
     paginator = Paginator(events, 10)
     page = request.GET.get('page', 1)
@@ -126,6 +130,8 @@ def event_list(request):
 # Return The actual result or an event
 def result (request, pk=None):
     event = get_object_or_404(Event, pk=pk)
+    if not _can_access(request, event):
+        raise PermissionDenied
     template = loader.get_template('event_detail/result.html')
     options = []
     datetime_choices = DatetimeChoice.objects.filter(event=event)
@@ -156,6 +162,8 @@ def result (request, pk=None):
 # Returns the event details relating to event stage
 def event_detail(request, pk=None):
     event = get_object_or_404(Event, pk=pk)
+    if not _can_access(request, event):
+        raise PermissionDenied
     if event.privacy == PrivacyChoices.PRIVATE:
         if (request.user in event.invited_users.all()) or (request.user == event.creator or request.user.is_superuser):
             if event.state == StateChoices.OPENED:
@@ -188,7 +196,7 @@ def event_detail(request, pk=None):
                 e = UserEventChoice.objects.filter(event=event)
                 choices_list = []
                 for i in e:
-                    choice = {'datetime_choices' : i.datetime_choices.first().content,'location_choices':i.location_choices.first().content,'creator':i.creator.username}
+                    choice = {'datetime_choices': str(i.datetime_choices.first().content) if i.datetime_choices.first() else '', 'location_choices': str(i.location_choices.first().content) if i.location_choices.first() else '', 'creator': i.creator.username}
                     choices_list.append(choice)
                 ddd = [x['datetime_choices'] for x in choices_list]
                 lll = [x['location_choices'] for x in choices_list]
@@ -196,12 +204,12 @@ def event_detail(request, pk=None):
                 if len(d) != 0:
                     best_date = len([c for c in ddd if c ==[item for item, count in collections.Counter(ddd).items() if count > 1][0]])
                 else:
-                    best_date = 1
+                    best_date = 1 if ddd else 0
                 l = [item for item, count in collections.Counter(lll).items() if count > 1]
                 if len(l) != 0:
                     best_location = len([c for c in lll if c ==[item for item, count in collections.Counter(lll).items() if count > 1][0]])
                 else:
-                    best_location = 1
+                    best_location = 1 if lll else 0
                 template = loader.get_template('event_detail/close.html') # Outputs answers
                 context = {
                 'event': event,
@@ -220,7 +228,7 @@ def event_detail(request, pk=None):
             e = UserEventChoice.objects.filter(event=event)
             choices_list = []
             for i in e:
-                choice = {'datetime_choices' : i.datetime_choices.first().content,'location_choices':i.location_choices.first().content,'creator':i.creator.username}
+                choice = {'datetime_choices': str(i.datetime_choices.first().content) if i.datetime_choices.first() else '', 'location_choices': str(i.location_choices.first().content) if i.location_choices.first() else '', 'creator': i.creator.username}
                 choices_list.append(choice)
             ddd = [x['datetime_choices'] for x in choices_list]
             lll = [x['location_choices'] for x in choices_list]
@@ -228,12 +236,12 @@ def event_detail(request, pk=None):
             if len(d) != 0:
                 best_date = len([c for c in ddd if c ==[item for item, count in collections.Counter(ddd).items() if count > 1][0]])
             else:
-                best_date = 1
+                best_date = 1 if ddd else 0
             l = [item for item, count in collections.Counter(lll).items() if count > 1]
             if len(l) != 0:
                 best_location = len([c for c in lll if c ==[item for item, count in collections.Counter(lll).items() if count > 1][0]])
             else:
-                best_location = 1
+                best_location = 1 if lll else 0
             template = loader.get_template('event_detail/close.html')
             context = {
             'event': event,
@@ -270,7 +278,27 @@ def event_detail(request, pk=None):
 # Event create Function
 # if request.user.id ==> registred user
 # else ==> anonymous user
+@require_http_methods(["GET", "POST"])
 def event_new(request):
+    if request.method == "POST":
+            valid = (
+                request.POST.get("title", "").strip() and len(request.POST.get("title", "")) <= 250
+                and request.POST.get("description", "").strip()
+                and request.POST.get("category") in {str(v) for v, _ in event_category_choices}
+                and request.POST.get("importance") in {str(v) for v, _ in event_importance_choices}
+                and request.POST.get("privacy", "1") in {"0", "1"}
+                and any(v.strip() for v in request.POST.getlist("ddd"))
+                and any(v.strip() for v in request.POST.getlist("location"))
+                and all(len(v) <= 255 for v in request.POST.getlist("ddd") + request.POST.getlist("location"))
+            )
+            if not valid:
+                messages.warning(request, "Enter a title, description, category, importance, date and location.")
+                return render(request, "event_new.html", {
+                    **return_statistics(), "privacy_choices": privacy_choices,
+                    "event_category_choices": event_category_choices, "event_importance_choices": event_importance_choices,
+                })
+            if request.POST.get("privacy") == "0" and not request.user.is_authenticated:
+                raise PermissionDenied
     if request.method == 'GET':
         template = loader.get_template('event_new.html')
         context = {
@@ -281,11 +309,11 @@ def event_new(request):
         context.update(return_statistics())
         return HttpResponse(template.render(context, request))
     else:
-        title = request.POST.get('title', None)
-        description = request.POST.get('description', None)
+        title = request.POST.get('title', '').strip()
+        description = request.POST.get('description', '').strip()
         category = request.POST.get('category', None)
         importance = request.POST.get('importance', None)
-        privacy = request.POST.get('privacy', None)
+        privacy = request.POST.get('privacy', '1')
         datetime_choices = request.POST.getlist('ddd')
         datetime_choices = list(filter(None, datetime_choices))
         location_choices = request.POST.getlist('location')
@@ -316,7 +344,7 @@ def event_new(request):
             }
             context.update(return_statistics())
             return HttpResponse(template.render(context, request))
-        if title.isspace()==True or description.isspace()==True or (("".join(location_choices))=='') or (("".join(datetime_choices))==''):
+        if not title or not description or (("".join(location_choices))=='') or (("".join(datetime_choices))==''):
 
             template = loader.get_template('event_new.html')
             invited_users = [ c for c in users]
@@ -408,6 +436,8 @@ def event_new(request):
 # Allows update of event prodivded user is either creator or admin (superuser)
 def event_update(request,pk):
     event = get_object_or_404(Event, pk=pk)
+    if not _can_access(request, event):
+        raise PermissionDenied
     if  event.state == StateChoices.ClOSE or (request.user == event.creator or request.user.is_superuser )== False:
         messages.warning(request, 'Permission denied :/')
         return redirect('event_detail', pk=pk)
@@ -432,15 +462,15 @@ def event_update(request,pk):
             context.update(return_statistics())
             return HttpResponse(template.render(context, request))
         else:
-            title = request.POST.get('title', None)
-            description = request.POST.get('description', None)
+            title = request.POST.get('title', '').strip()
+            description = request.POST.get('description', '').strip()
             category = request.POST.get('category', None)
             importance = request.POST.get('importance', None)
-            privacy = request.POST.get('privacy', None)
+            privacy = request.POST.get('privacy', '1')
             datetime_choices = request.POST.getlist('ddd')
             location_choices = request.POST.getlist('location')
             invited_users = request.POST.getlist('invited')
-            if title.isspace()==True or description.isspace()==True or (("".join(location_choices))=='') or (("".join(datetime_choices))==''):
+            if not title or not description or (("".join(location_choices))=='') or (("".join(datetime_choices))==''):
                 messages.warning(request, 'Event update unsuccessful, Please make sure that all required information was entered !')
                 e = DatetimeChoice.objects.filter(event=event)
                 loc = LocationChoice.objects.filter(event=event)
@@ -499,8 +529,11 @@ def event_update(request,pk):
 # Event close Function
 # Allows users to close an event alongside sending notification email to participants
 @login_required(login_url='/login/')
+@require_POST
 def event_close(request, pk):
     event = get_object_or_404(Event, pk=pk)
+    if not _can_access(request, event):
+        raise PermissionDenied
     if  (event.state == StateChoices.ClOSE) or (request.user == event.creator or request.user.is_superuser )== False:
         messages.warning(request, 'No permission!')
         return redirect('event_detail', pk=pk)
@@ -530,91 +563,69 @@ def event_close(request, pk):
 
 # Event Choice Function
 # Allows event creator to view choices of ongoing/active event poll
+@login_required
+@require_http_methods(["GET", "POST"])
 def event_join(request, pk):
-    if request.user.is_authenticated:
-        if request.method == 'GET':
-            event = get_object_or_404(Event, pk=pk)
-            if UserEventChoice.objects.filter(creator=request.user, event=event).first() is not None:
-                a = UserEventChoice.objects.filter(creator=request.user, event=event).all()
-                for i in a:
-                    for j in i.datetime_choices.all():
-                        date = j.content
-                    for j in i.location_choices.all():
-                        loc = j.content
-                event = get_object_or_404(Event, pk=pk)
-                template = loader.get_template('event_detail/choices.html')
-                try:
-                    context = {'event': event,
-                               'date':date,
-                               'location':loc,
-                               }
-                except:
-                    context = {'event': event
-                           }
-                context.update(return_statistics())
-                return HttpResponse(template.render(context, request))
-
-            template = loader.get_template('event_detail/join.html')
-            context = {'event': event}
-            context.update(return_statistics())
-            return HttpResponse(template.render(context, request))
-        elif request.method == 'POST':
-            event = get_object_or_404(Event, pk=pk)
-            datetime_choice_pks = request.POST.getlist('datetime')
-            user_event_choice = UserEventChoice.objects.create(
-                event=event,
-                creator=request.user
-            )
-            for datetime_choice_pk in datetime_choice_pks:
-                datetime_choice = get_object_or_404(DatetimeChoice, pk=datetime_choice_pk)
-                user_event_choice.datetime_choices.add(datetime_choice)
-            location_choice_pks = request.POST.getlist('location')
-            for location_choice_pk in location_choice_pks:
-                location_choice = get_object_or_404(LocationChoice, pk=location_choice_pk)
-                user_event_choice.location_choices.add(location_choice)
-            messages.success(request, 'Join to event successfully!')
-            return redirect('event_detail', pk=pk)
-    messages.warning(request, 'Please Log In to Join !')
-    return redirect('event_detail', pk=pk)
+    event = get_object_or_404(Event, pk=pk)
+    if not _can_access(request, event):
+        raise PermissionDenied
+    existing = UserEventChoice.objects.filter(event=event, creator=request.user).first()
+    if request.method == "GET":
+        context = {"event": event, **return_statistics()}
+        if existing:
+            date = existing.datetime_choices.first()
+            location = existing.location_choices.first()
+            context.update(date=date.content if date else "", location=location.content if location else "")
+        return render(request, "event_detail/choices.html" if existing else "event_detail/join.html", context)
+    if event.state != StateChoices.OPENED:
+        raise PermissionDenied
+    if existing:
+        messages.warning(request, "You have already submitted choices for this event.")
+        return redirect("event_detail", pk=pk)
+    dates = request.POST.getlist("datetime")
+    locations = request.POST.getlist("location")
+    if not dates or not locations:
+        messages.warning(request, "Select a date and location.")
+        return redirect("event_join", pk=pk)
+    date_choices = [get_object_or_404(DatetimeChoice, pk=_integer_pk(value), event=event) for value in dates]
+    location_choices = [get_object_or_404(LocationChoice, pk=_integer_pk(value), event=event) for value in locations]
+    with transaction.atomic():
+        vote = UserEventChoice.objects.create(event=event, creator=request.user)
+        vote.datetime_choices.set(date_choices)
+        vote.location_choices.set(location_choices)
+    messages.success(request, "Your event choices have been saved.")
+    return redirect("event_detail", pk=pk)
 
 
 # Event Submit Function
 # Submission mechanismn
+@login_required
+@require_POST
 def event_submit(request):
-    pk = request.POST.get('pk', False)
-
-    event = get_object_or_404(Event, pk=pk)
-    if request.method == 'GET':
-            template = loader.get_template('event_detail/opened.html')
-            context = {'event': event}
-            context.update(return_statistics())
-            return HttpResponse(template.render(context, request))
-    else:
-        if request.user.is_authenticated:
-            if UserEventChoice.objects.filter(event=event, creator=request.user).count() != 0:
-                messages.warning(request, 'Please do not submit your choices for this event again!')
-                return redirect('event_detail', pk=pk)
-            choice_pk = request.POST.get('choice',None)
-            choice2_pk = request.POST.get('choice2', None)
-            choice = get_object_or_404(DatetimeChoice, pk=choice_pk)
-            choice2 = get_object_or_404(LocationChoice, pk=choice2_pk)
-            user_event_choice = UserEventChoice.objects.create(
-                    event=event,
-                    creator=request.user)
-            user_event_choice.datetime_choices.add(choice)
-            user_event_choice.location_choices.add(choice2)
-            messages.success(request, 'Your event submission was successful!')
-            return redirect('event_detail', pk=pk)
-
-        messages.warning(request, 'Please Log In to submit your choices !')
-        return redirect('event_detail', pk=pk)
+    event = get_object_or_404(Event, pk=_integer_pk(request.POST.get("pk")))
+    if not _can_access(request, event) or event.state != StateChoices.OPENED:
+        raise PermissionDenied
+    if UserEventChoice.objects.filter(event=event, creator=request.user).exists():
+        messages.warning(request, "You have already submitted choices for this event.")
+        return redirect("event_detail", pk=event.pk)
+    if not request.POST.get("choice") or not request.POST.get("choice2"):
+        messages.warning(request, "Select a date and location.")
+        return redirect("event_detail", pk=event.pk)
+    date = get_object_or_404(DatetimeChoice, pk=_integer_pk(request.POST["choice"]), event=event)
+    location = get_object_or_404(LocationChoice, pk=_integer_pk(request.POST["choice2"]), event=event)
+    with transaction.atomic():
+        vote = UserEventChoice.objects.create(event=event, creator=request.user)
+        vote.datetime_choices.add(date)
+        vote.location_choices.add(location)
+    messages.success(request, "Your event choices have been saved.")
+    return redirect("event_detail", pk=event.pk)
 
 ### POOL FUNCTIONS ###
 
 # Poll List Function
 # Return Poll list page with paginator to 10 per page
 def poll_list(request):
-    polls = Poll.objects.all()
+    polls = _visible_to(Poll.objects.all(), request.user)
     template = loader.get_template('poll_list.html')
     paginator = Paginator(polls, 5)
     page = request.GET.get('page')
@@ -630,6 +641,8 @@ def poll_list(request):
 # Return The actual result for a Poll
 def result_poll (request, pk=None):
     poll = get_object_or_404(Poll, pk=pk)
+    if not _can_access(request, poll):
+        raise PermissionDenied
     template = loader.get_template('poll_detail/result.html')
     poll_choices = []
     items = PollChoice.objects.filter(poll=poll)
@@ -658,7 +671,7 @@ def result_poll (request, pk=None):
 # Poll list Function
 # Return the list of private polls
 def poll_list_private(request):
-    polls = Poll.objects.filter(privacy=0)
+    polls = _visible_to(Poll.objects.filter(privacy=PrivacyChoices.PRIVATE), request.user)
     template = loader.get_template('poll_list.html')
     paginator = Paginator(polls, 5)
     page = request.GET.get('page')
@@ -676,8 +689,10 @@ def poll_list_private(request):
 # Return the detail page of an Poll relating with his state
 def poll_detail(request, pk=None):
     poll = get_object_or_404(Poll, pk=pk)
+    if not _can_access(request, poll):
+        raise PermissionDenied
     if poll.privacy == PrivacyChoices.PRIVATE:
-        if (request.user in poll.invited_users.all()) or (request.user == poll.creator):
+        if (request.user in poll.invited_users.all()) or (request.user == poll.creator) or request.user.is_superuser:
             if poll.state == StateChoices.OPENED:
                 template = loader.get_template('poll_detail/opened.html')
                 context = {'poll': poll}
@@ -696,6 +711,7 @@ def poll_detail(request, pk=None):
             else:
                 template = loader.get_template('poll_detail/close.html')
                 poll_choices = []
+                best_option = 0
                 items = PollChoice.objects.filter(poll=poll)
                 for item in items:
                     choice = {"option":item.content, "users":[], "count":0}
@@ -731,6 +747,7 @@ def poll_detail(request, pk=None):
         if poll.state == StateChoices.ClOSE:
             template = loader.get_template('poll_detail/close.html')
             poll_choices = []
+            best_option = 0
             items = PollChoice.objects.filter(poll=poll)
             for item in items:
                 choice = {"option":item.content, "users":[], "count":0}
@@ -789,85 +806,50 @@ def validateEmail(email):
 
 # Poll Submit Function
 # Allows submitting choices for a Poll
+@require_POST
 def poll_submit(request):
-    pk = request.POST['pk']
-    poll = get_object_or_404(Poll, pk=pk)
+    poll = get_object_or_404(Poll, pk=_integer_pk(request.POST.get("pk")))
+    if not _can_access(request, poll) or poll.state != StateChoices.OPENED:
+        raise PermissionDenied
+    values = request.POST.getlist("choices") if poll.multi_choices else [request.POST.get("choice")]
+    if not values or any(not value for value in values):
+        messages.warning(request, "Select at least one choice.")
+        return redirect("poll_detail", pk=poll.pk)
+    choices = [get_object_or_404(PollChoice, pk=_integer_pk(value), poll=poll) for value in set(values)]
     if request.user.is_authenticated:
-        if UserPollChoice.objects.filter(poll=poll, creator=request.user).count() != 0:
-            messages.warning(request, 'Please do not submit your poll choices again!')
-            return redirect('poll_detail', pk=pk)
-        if poll.multi_choices:
-            user_poll_choice = UserPollChoice.objects.create(
-                poll=poll,
-                creator=request.user
-            )
-            choice_pks = request.POST.getlist('choices')
-            if choice_pks ==[]:
-                messages.warning(request, 'Your poll submission was unsuccessful !')
-                return redirect('poll_detail', pk=pk)
-            for choice_pk in choice_pks:
-                choice = get_object_or_404(PollChoice, pk=choice_pk)
-                user_poll_choice.choices.add(choice)
-        else:
-            choice_pk = request.POST['choice']
-            if choice_pk ==[]:
-                messages.warning(request, 'Your poll submission was unsuccessful !')
-                return redirect('poll_detail', pk=pk)
-            choice = get_object_or_404(PollChoice, pk=choice_pk)
-            user_poll_choice = UserPollChoice.objects.create(
-                poll=poll,
-                creator=request.user
-            )
-            user_poll_choice.choices.add(choice)
-        messages.success(request, 'Your poll submission was successful!')
-        return redirect('poll_detail', pk=pk)
-
-    if poll.multi_choices:
-        choice_pks = request.POST.getlist('choices')
-        if choice_pks==[]:
-            messages.warning(request, 'Your poll submission was unsuccessful !')
-            return redirect('poll_detail', pk=pk)
-        email = request.POST['email']
-        if not email:
-            messages.warning(request, 'Please enter an email address!')
-            return redirect('poll_detail', pk=pk)
-        exist = UserPollChoice.objects.filter(email=email)
-        if exist:
-            messages.warning(request, 'Please do not submit your poll choices again!')
-            return redirect('poll_detail', pk=pk)
-        user_poll_choice = UserPollChoice.objects.create(
-            poll=poll,
-            email=email
-            )
-        for choice_pk in choice_pks:
-            choice = get_object_or_404(PollChoice, pk=choice_pk)
-            user_poll_choice.choices.add(choice)
+        identity = {"creator": request.user}
     else:
+        email = request.POST.get("email", "").strip().lower()
         try:
-            choice_pk = request.POST['choice']
-            email = request.POST['email']
-            if not email or not validateEmail(email):
-                raise Exception
-            exist = UserPollChoice.objects.filter(email=email)
-            if exist:
-                messages.warning(request, 'Please do not submit your poll choices again!')
-                return redirect('poll_detail', pk=pk)
-            choice = get_object_or_404(PollChoice, pk=choice_pk)
-            user_poll_choice = UserPollChoice.objects.create(
-                poll=poll,
-                email=email)
-            user_poll_choice.choices.add(choice)
-        except:
-            messages.warning(request, 'Your poll submission was unsuccessful !')
-            return redirect('poll_detail', pk=pk)
-    messages.success(request, 'Your poll submission was successful!')
-    return redirect('poll_detail', pk=pk)
+            validate_email(email)
+        except ValidationError:
+            messages.warning(request, "Enter a valid email address.")
+            return redirect("poll_detail", pk=poll.pk)
+        identity = {"email": email}
+    if UserPollChoice.objects.filter(poll=poll, **identity).exists():
+        messages.warning(request, "You have already submitted choices for this poll.")
+        return redirect("poll_detail", pk=poll.pk)
+    with transaction.atomic():
+        vote = UserPollChoice.objects.create(poll=poll, **identity)
+        vote.choices.set(choices)
+    messages.success(request, "Your poll choices have been saved.")
+    return redirect("poll_detail", pk=poll.pk)
 
 
 # Poll create Function
 # if request.user.id ==> registred user
 # else ==> anonymous user
+@require_http_methods(["GET", "POST"])
 def poll_new(request):
+    if request.method == "POST":
+            values = [v.strip() for v in request.POST.getlist("choices") if v.strip()]
+            if (not request.POST.get("title", "").strip() or len(request.POST.get("title", "")) > 255
+                    or not request.POST.get("description", "").strip() or len(values) < 2
+                    or any(len(v) > 255 for v in values) or request.POST.get("privacy", "1") not in {"0", "1"}):
+                messages.warning(request, "Enter a title, description and at least two choices.")
+                return render(request, "poll_new.html", {**return_statistics(), "privacy_choices": privacy_choices})
+            if request.POST.get("privacy") == "0" and not request.user.is_authenticated:
+                raise PermissionDenied
     if request.method == 'GET':
         template = loader.get_template('poll_new.html')
         context = {
@@ -887,7 +869,7 @@ def poll_new(request):
         choices_list = [ c for c in choices]
         users = request.POST.getlist('users')
         users = list(filter(None, users))
-        privacy = request.POST.get('privacy')
+        privacy = request.POST.get('privacy', '1')
         invalid_users = []
         for user in users:
             username = User.objects.filter(username=user).first()
@@ -971,6 +953,8 @@ def poll_new(request):
 @login_required
 def poll_update(request,pk):
     poll = get_object_or_404(Poll, pk=pk)
+    if not _can_access(request, poll):
+        raise PermissionDenied
     if poll.state == StateChoices.ClOSE or(request.user == poll.creator or request.user.is_superuser )== False:
         messages.warning(request, 'Permission denied :/')
         return redirect('poll_detail', pk=pk)
@@ -1001,8 +985,8 @@ def poll_update(request,pk):
                 is_multi_choice = False
             choices = request.POST.getlist('choices')
             users = request.POST.getlist('users')
-            privacy = request.POST.get('privacy')
-            if  title.isspace()==True or description.isspace()==True or ("".join(choices or None).isspace() or "".join(choices or None)=='' ) :
+            privacy = request.POST.get('privacy', '1')
+            if  not title or not description or ("".join(choices or None).isspace() or "".join(choices or None)=='' ) :
                 messages.warning(request, 'Poll update unsuccessful')
                 return redirect('poll_detail', pk=pk)
             else:
@@ -1034,8 +1018,11 @@ def poll_update(request,pk):
 # Poll close Function
 # Allows to close a Poll and send a notifications email for his participants
 @login_required(login_url='/login/')
+@require_POST
 def poll_close(request, pk=None):
     poll = get_object_or_404(Poll, pk=pk)
+    if not _can_access(request, poll):
+        raise PermissionDenied
     if (poll.state == StateChoices.ClOSE) or (request.user == poll.creator or request.user.is_superuser )== False:
         messages.warning(request, 'No permission !')
         return redirect('poll_detail', pk=pk)
@@ -1112,6 +1099,7 @@ def user_profile(request):
 
 # Logout Function
 @login_required(login_url='/login/')
+@require_POST
 def logout_deal(request):
     logout(request)
     messages.success(request, 'You have successfully logged out!')
@@ -1119,77 +1107,52 @@ def logout_deal(request):
 
 # Register Function
 # With error handle infos
+@require_http_methods(["GET", "POST"])
 def register(request):
     if request.user.is_authenticated:
-        return redirect('/')
-    else:
-        template = loader.get_template('register.html')
-        if request.method == 'POST':
-            username = request.POST['username']
-            user = User.objects.filter(username=username)
-            if username is None or username == '' or user:
-                if user:
-                    messages.warning(request,"This username is already in use ! ")
-                else:
-                    messages.warning(request,"This username is invalid ! ")
-                context = {}
-                context.update(return_statistics())
-                return HttpResponse(template.render(context, request))
-            email = request.POST['email']
-            if email is None or email == '':
-                messages.warning(request,"Email address is invalid ! ")
-                context = {}
-                context.update(return_statistics())
-                return HttpResponse(template.render(context, request))
-            password = request.POST['password']
-            if password is None or password == '':
-                messages.warning(request,"Password is invalid ! ")
-                context = {}
-                context.update(return_statistics())
-                return HttpResponse(template.render(context, request))
-            recaptcha_response = request.POST.get('g-recaptcha-response')
-            url = 'https://www.google.com/recaptcha/api/siteverify'
-            values = {
-                'secret': settings.GOOGLE_RECAPTCHA_SECRET_KEY,
-                'response': recaptcha_response
-            }
-            data = urllib.parse.urlencode(values).encode()
-            req =  urllib.request.Request(url, data=data)
-            response = urllib.request.urlopen(req)
-            result = json.loads(response.read().decode())
-            if result['success']:
-                pass
-            else:
-                messages.warning(request,"reCAPTCHA  is invalid ! ")
-                context = {}
-                context.update(return_statistics())
-                return HttpResponse(template.render(context, request))
-            # Below line creates username
-            User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password=password
-                )
-            messages.success(request, 'You have successfully registered ! '+'\n'+'Now you can Log In :)')
-            return redirect('login')
-
-        elif request.method == 'GET':
-            template = loader.get_template('register.html')
-            context = {}
-            context.update(return_statistics())
-            return HttpResponse(template.render(context, request))
+        return redirect("index")
+    context = return_statistics()
+    if request.method == "GET":
+        return render(request, "register.html", context)
+    data = request.POST.copy()
+    data["password1"] = request.POST.get("password", "")
+    data["password2"] = request.POST.get("password", "")
+    form = RegistrationForm(data)
+    if not form.is_valid():
+        for errors in form.errors.values():
+            for error in errors:
+                messages.warning(request, error)
+        return render(request, "register.html", context)
+    if settings.RECAPTCHA_ENABLED:
+        try:
+            response = req.post(
+                "https://www.google.com/recaptcha/api/siteverify",
+                data={"secret": settings.GOOGLE_RECAPTCHA_SECRET_KEY,
+                      "response": request.POST.get("g-recaptcha-response", "")},
+                timeout=5,
+            )
+            response.raise_for_status()
+            verified = response.json().get("success") is True
+        except (req.RequestException, ValueError):
+            verified = False
+        if not verified:
+            messages.warning(request, "Verification failed. Please try again.")
+            return render(request, "register.html", context)
+    form.save()
+    messages.success(request, "Your account is ready. You can now log in.")
+    return redirect("login")
 
 # Login Function
 def login_deal(request):
     if request.user.is_authenticated:
         return redirect('/')
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
         user = authenticate(username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('/profile')
+            return redirect('profile')
         else:
             messages.warning(request, 'Incorrect password or username ! ')
             return redirect('login')
@@ -1239,26 +1202,21 @@ def more(request, query):
 
 # Change Password Function
 # Allows users to change their password, error handling also applied
-@login_required(login_url='/login/')
+@login_required
+@require_http_methods(["GET", "POST"])
 def change_password(request):
-    if request.method == 'POST':
-        old_password = request.POST.get('oldPassword')
-        user = authenticate(username=request.user.username, password=old_password)
-        if user is None:
-            messages.warning(request, 'All fields are required ! ')
-            return redirect('change_password')
-        new_password = request.POST.get('newPassword')
-        new_password_repeat = request.POST.get('newPasswordRepeat')
-        if (new_password.isspace=='' or new_password_repeat=='') or new_password!= new_password_repeat:
-            messages.warning(request, 'Your new passwords did not match ! ')
-            return redirect('change_password')
-        else:
-            request.user.set_password(new_password)
-            request.user.save()
-            messages.success(request, 'Your password has been changed successfully, You should re-login now !')
-            return redirect('index')
-    elif request.method == 'GET':
-        template = loader.get_template('change_password.html')
-        context = {}
-        context.update(return_statistics())
-        return HttpResponse(template.render(context, request))
+    if request.method == "POST":
+        form = PasswordChangeForm(request.user, {
+            "old_password": request.POST.get("oldPassword", ""),
+            "new_password1": request.POST.get("newPassword", ""),
+            "new_password2": request.POST.get("newPasswordRepeat", ""),
+        })
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, "Your password has been changed.")
+            return redirect("profile")
+        for errors in form.errors.values():
+            for error in errors:
+                messages.warning(request, error)
+    return render(request, "change_password.html", return_statistics())
