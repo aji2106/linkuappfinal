@@ -1,0 +1,26 @@
+name: LinkUp tests
+on:
+  push:
+    branches: [master]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
+    env:
+      SECRET_KEY: ci-only-disposable-key-not-for-production-0123456789abcdef
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: python manage.py check --settings=link_up.test_settings
+      - run: python manage.py makemigrations --check --dry-run --settings=link_up.test_settings
+      - run: python manage.py test --settings=link_up.test_settings
+      - run: python -m pip check

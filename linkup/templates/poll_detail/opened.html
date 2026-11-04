@@ -19,9 +19,9 @@
                  </div>
                 {% if request.user == poll.creator or  user.is_superuser  %}
                     <div class="col text-right">
-                        <a class="card-link" href="{% url 'poll_close' poll.pk %}">
+                        <form class="card-link" method="post" action="{% url 'poll_close' poll.pk %}">{% csrf_token %}
                             <button class="btn btn-danger">Close</button>
-                        </a>
+                        </form>
                         <a class="card-link" href="{% url 'poll_update' poll.pk %}">
                              <button type="button" class="btn btn-secondary">Update</button>
                         </a>

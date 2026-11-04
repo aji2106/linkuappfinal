@@ -10,7 +10,7 @@
                     <span>My Profile</span>
                 </div>
                 <div class="card-body font-weight-bold">
-                    <img class="img-thumbnail mx-auto d-block mb-3" src="{{ request.user.profile.image.url }}">
+                    <img class="img-thumbnail mx-auto d-block mb-3" src="{{ request.user.profile.image_url }}">
                     <span>Username: <span class="text-info">{{ request.user.username }}</span></span><br>
                     {% if request.user.email %}
                      <span>E-mail: <span class="text-info">{{ request.user.email }}</span></span>
